@@ -1,83 +1,106 @@
 local navigation = {}
-local position = require("position") -- Include the position module
+local position = require("position")
+local utility = require("utility")
+
+-- Default blacklist: blocks that should not be broken
+local defaultBlacklist = {
+    ["minecraft:chest"] = true,
+    ["minecraft:ender_chest"] = true,
+    ["minecraft:shulker_box"] = true,
+    ["minecraft:barrel"] = true,
+    ["minecraft:beacon"] = true,
+}
 
 -- Function to navigate to a target position
-function navigation.navigateTo(targetX, targetY, targetZ, yFirst)
-    local pos = position.load()
-    local x, y, z = pos.x, pos.y, pos.z
+-- @param targetPos Table {x, y, z, direction} The target position to navigate to.
+-- @param traversalOrder Array {"x", "y", "z"} The order in which to traverse axes.
+-- @param breakBlocks Boolean Whether to break blocks in the way.
+-- @param blacklist Table List of block names that cannot be broken. Uses defaultBlacklist if nil.
+function navigation.navigateTo(targetPos, traversalOrder, breakBlocks, blacklist)
+    local currentPos = utility.readPositionFile("turtle_position")
+    if not currentPos then
+        utility.log("navigation couldnt determine current position")
+        return false
+    end
 
-    print("Navigating to target:", targetX, targetY, targetZ)
-    print("Current position:", x, y, z)
+    -- Use the default blacklist if none is provided
+    blacklist = blacklist or defaultBlacklist
 
-    if yFirst then
-        -- Adjust Y first
-        while y ~= targetY do
-            if y < targetY then
-                turtle.digUp()
-                position.up()
-                y = y + 1
-            else
-                turtle.digDown()
-                position.down()
-                y = y - 1
+    local function turnTo(targetDirection)
+        local directions = { "north", "east", "south", "west" }
+        local currentIndex, targetIndex
+    
+        for i, dir in ipairs(directions) do
+            if dir == currentPos.direction then currentIndex = i end
+            if dir == targetDirection then targetIndex = i end
+        end
+    
+        local turns = (targetIndex - currentIndex + 4) % 4 -- Normalize to avoid negative numbers
+        for _ = 1, turns do
+            _, currentPos = position.turn("right")
+        end
+    end
+
+    -- Helper to move in a given direction (handles block breaking if enabled)
+    local function move(axis, targetValue)
+        while currentPos[axis] ~= targetValue do
+            -- Determine which direction to turn and face
+            if axis == "x" then
+                if currentPos.x < targetValue then
+                    turnTo("east")
+                elseif currentPos.x > targetValue then
+                    turnTo("west")
+                end
+            elseif axis == "z" then
+                if currentPos.z < targetValue then
+                    turnTo("south")
+                elseif currentPos.z > targetValue then
+                    turnTo("north")
+                end
             end
-        end
-    end
 
-    -- Move along X-axis
-    if x < targetX then
-        while pos.direction ~= "east" do
-            position.turn("right")
-            pos = position.load()
-        end
-    elseif x > targetX then
-        while pos.direction ~= "west" do
-            position.turn("right")
-            pos = position.load()
-        end
-    end
-    while x ~= targetX do
-        turtle.dig()
-        position.forward()
-        pos = position.load()
-        x = pos.x
-    end
-
-    -- Move along Z-axis
-    if z < targetZ then
-        while pos.direction ~= "south" do
-            position.turn("right")
-            pos = position.load()
-        end
-    elseif z > targetZ then
-        while pos.direction ~= "north" do
-            position.turn("right")
-            pos = position.load()
-        end
-    end
-    while z ~= targetZ do
-        turtle.dig()
-        position.forward()
-        pos = position.load()
-        z = pos.z
-    end
-
-    if not yFirst then
-        -- Adjust Y last
-        while y ~= targetY do
-            if y < targetY then
-                turtle.digUp()
-                position.up()
-                y = y + 1
-            else
-                turtle.digDown()
-                position.down()
-                y = y - 1
+            -- Handle movement
+            if breakBlocks then
+                if turtle.detect() then
+                    local success, data = turtle.inspect()
+                    if success and blacklist[data.name] then
+                        utility.log("Blocked by non-breakable object: " .. (data.name or "unknown"))
+                        return false
+                    end
+                    turtle.dig() -- Break block if not blacklisted
+                end
+            elseif turtle.detect() then
+                utility.log("Obstacle encountered at (" .. currentPos.x .. ", " .. currentPos.y .. ", " .. currentPos.z .. ", " .. currentPos.direction .. ")")
+                return false
             end
+
+            -- Move forward
+            local moveSuccess, updatedPos = position.forward()
+            if not moveSuccess then
+                utility.log("Failed to move forward at (" .. currentPos.x .. ", " .. currentPos.y .. ", " .. currentPos.z .. ", " .. currentPos.direction .. ")")
+                return false
+            end
+            currentPos = updatedPos
+        end
+        return true
+    end
+
+    -- Traverse according to the specified order
+    for _, axis in ipairs(traversalOrder) do
+        if not move(axis, targetPos[axis]) then
+            return false -- Stop navigation on failure
         end
     end
 
-    print("Arrived at target position:", targetX, targetY, targetZ)
+    -- Orient to the final direction
+    if targetPos.direction then
+        while currentPos.direction ~= targetPos.direction do
+            _, currentPos = position.turn("right")
+        end
+    end
+
+    utility.log("Navigation to (" .. targetPos.x .. ", " .. targetPos.y .. ", " .. targetPos.z .. ") complete.")
+    return true
 end
 
 return navigation
