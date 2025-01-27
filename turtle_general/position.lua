@@ -40,6 +40,7 @@ function position.save()
   utility.unlock(utility.getLock(positionFile))
 end
 
+-- turns turtle while tracking position data. accepts "left" and "right"
 function position.turn(turnType)
   if not position.load() then return false, pos end
   local directions = { "north", "east", "south", "west" }
@@ -61,6 +62,7 @@ function position.turn(turnType)
   return true, pos
 end
 
+-- moves turtle up while tracking position data
 function position.up()
   if not position.load() then return false, pos end
   local success = turtle.up()
@@ -72,6 +74,7 @@ function position.up()
   return success, pos
 end
 
+-- moves turtle down while tracking position data
 function position.down()
   if not position.load() then return false, pos end
   local success = turtle.down()
@@ -83,6 +86,7 @@ function position.down()
   return success, pos
 end
 
+-- moves turtle forward while tracking position data
 function position.forward()
   if not position.load() then return false, pos end
   local success = turtle.forward()
@@ -102,6 +106,7 @@ function position.forward()
   return success, pos
 end
 
+-- moves turtle back while tracking position data
 function position.back()
   if not position.load() then return false, pos end
   local success = turtle.back()
@@ -121,6 +126,7 @@ function position.back()
   return success, pos
 end
 
+-- support function for calibration
 local function getDirection(x1,z1)
   if pos.x > x1 then
     pos.direction = "east"
@@ -135,6 +141,7 @@ local function getDirection(x1,z1)
   position.save()
 end
 
+-- support function for calibration
 local function calibrationMove()
   local attempts = {
     { move = position.forward, revert = position.back },
@@ -151,6 +158,7 @@ local function calibrationMove()
   return false
 end
 
+-- calibrates the current position and direction the turtle is facing
 function position.calibrate()
   if not position.load() then return false, pos end
   if calibrationMove() then
