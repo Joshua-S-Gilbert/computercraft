@@ -7,7 +7,7 @@ local pos = { x = 0, y = 0, z = 0, direction = "north" }
 
 -- Load the current position from file
 -- this has different functionality than utility.readPositionFile(). do not remove it
-function position.load()
+local function load()
   if fs.exists(positionFile) then -- assume knows location
       utility.lock(utility.getLock(positionFile))
       local file = fs.open(positionFile, "r")
@@ -34,7 +34,7 @@ end
 
 -- turns turtle while tracking position data. accepts "left" and "right"
 function position.turn(turnType)
-  if not position.load() then return false, pos end
+  if not load() then return false, pos end
   local directions = { "north", "east", "south", "west" }
   local dirIndex = 1
   for i,dir in ipairs(directions) do
@@ -56,7 +56,7 @@ end
 
 -- moves turtle up while tracking position data
 function position.up()
-  if not position.load() then return false, pos end
+  if not load() then return false, pos end
   local success = turtle.up()
   if success then
     pos.y = pos.y+1
@@ -68,7 +68,7 @@ end
 
 -- moves turtle down while tracking position data
 function position.down()
-  if not position.load() then return false, pos end
+  if not load() then return false, pos end
   local success = turtle.down()
   if success then
     pos.y = pos.y-1
@@ -80,7 +80,7 @@ end
 
 -- moves turtle forward while tracking position data
 function position.forward()
-  if not position.load() then return false, pos end
+  if not load() then return false, pos end
   local success = turtle.forward()
   if success then
     if pos.direction == "north" then
@@ -100,7 +100,7 @@ end
 
 -- moves turtle back while tracking position data
 function position.back()
-  if not position.load() then return false, pos end
+  if not load() then return false, pos end
   local success = turtle.back()
   if success then
     if pos.direction == "north" then
@@ -152,7 +152,7 @@ end
 
 -- calibrates the current position and direction the turtle is facing
 function position.calibrate()
-  if not position.load() then return false, pos end
+  if not load() then return false, pos end
   if calibrationMove() then
     return true, pos
   else
