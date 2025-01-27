@@ -26,18 +26,9 @@ function position.load()
         utility.log("failed to calibrate")
         return false
       end
-      position.save()
+      utility.saveFile(positionFile)
       return true
   end
-end
-
--- Save the current position to file
-function position.save()
-  utility.lock(utility.getLock(positionFile))
-  local file = fs.open(positionFile, "w")
-  file.write(textutils.serialize(pos))
-  file.close()
-  utility.unlock(utility.getLock(positionFile))
 end
 
 -- turns turtle while tracking position data. accepts "left" and "right"
@@ -58,7 +49,7 @@ function position.turn(turnType)
   end
   pos.direction = directions[dirIndex]
   utility.log(string.format("turned to (%s), index: (%d).", pos.direction, dirIndex))
-  position.save()
+  utility.saveFile(positionFile)
   return true, pos
 end
 
@@ -68,7 +59,7 @@ function position.up()
   local success = turtle.up()
   if success then
     pos.y = pos.y+1
-    position.save()
+    utility.saveFile(positionFile)
     utility.log(string.format("Moved to (%d, %d, %d).", pos.x, pos.y, pos.z))
   end
   return success, pos
@@ -80,7 +71,7 @@ function position.down()
   local success = turtle.down()
   if success then
     pos.y = pos.y-1
-    position.save()
+    utility.saveFile(positionFile)
     utility.log(string.format("Moved to (%d, %d, %d).", pos.x, pos.y, pos.z))
   end
   return success, pos
@@ -100,7 +91,7 @@ function position.forward()
     elseif pos.direction == "west" then
         pos.x = pos.x - 1
     end
-    position.save()
+    utility.saveFile(positionFile)
     utility.log(string.format("Moved to (%d, %d, %d).", pos.x, pos.y, pos.z))
   end
   return success, pos
@@ -120,7 +111,7 @@ function position.back()
     elseif pos.direction == "west" then
         pos.x = pos.x + 1
     end
-    position.save()
+    utility.saveFile(positionFile)
     utility.log(string.format("Moved to (%d, %d, %d).", pos.x, pos.y, pos.z))
   end
   return success, pos
@@ -138,7 +129,7 @@ local function getDirection(x1,z1)
       pos.direction = "north"
   end
   utility.log(string.format("current direction %s.", pos.direction))
-  position.save()
+  utility.saveFile(positionFile)
 end
 
 -- support function for calibration
