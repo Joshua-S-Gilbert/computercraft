@@ -6,6 +6,7 @@ local positionFile = "turtle_position"
 local pos = { x = 0, y = 0, z = 0, direction = "north" }
 
 -- Load the current position from file
+-- this has different functionality than utility.readPositionFile(). do not remove it
 function position.load()
   if fs.exists(positionFile) then -- assume knows location
       utility.lock(utility.getLock(positionFile))
