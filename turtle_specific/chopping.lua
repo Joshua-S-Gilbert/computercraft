@@ -1,86 +1,50 @@
 local position = require("position")
 local refuel = require("refuel")
+local utility = require("utility")
+local navigation = require("navigation")
 
 local jobStartPos = "job_start_pos"
-
--- Function to check for refuel interrupt
-local function checkRefuelInterrupt()
-    local needsRefuel, refuelPosition = refuel.checkRefuel()
-    if needsRefuel then
-        print("Refuel required. Navigating to refuel station...")
-        refuel.refuel(refuelPosition)
-        return true
-    end
-    return false
-end
+local positionFile = "turtle_position"
 
 -- Recursive function to chop the tree
-local function chopTree(startX, startZ)
-    local pos = position.load()
-
-
-    -- Check for refuel before each operation
-    if checkRefuelInterrupt() then
-        return
+local function chopTree()
+    -- 1. Refuel check
+    if not refuel.checkRefuel() then
+        utility.log("Refuel failed, stopping tree chopping.")
+        return false
     end
 
-    -- Check for wood blocks in all horizontal directions
-    for _, dir in ipairs(directions) do
-        if dir.turn == "left" then
-            position.turn(pos, "left")
-            turtle.turnLeft()
-        elseif dir.turn == "right" then
-            position.turn(pos, "right")
-            turtle.turnRight()
-        elseif dir.turn == "back" then
-            position.turn(pos, "right")
-            turtle.turnRight()
-            position.turn(pos, "right")
-            turtle.turnRight()
-        end
-
+    -- 2. Horizontal wood detection
+    for _ = 1, 4 do
+        position.turn("left") -- Turn to the next direction
         if turtle.detect() then
             turtle.dig()
-            dir.move()
-            position.update(pos, dir.update)
-            chopTree(startX, startZ) -- Recurse to chop connected logs
-            dir.back()
-            position.update(pos, "back")
-        end
-
-        -- Reset orientation after checking
-        if dir.turn == "left" then
-            position.turn(pos, "right")
-            turtle.turnRight()
-        elseif dir.turn == "right" then
-            position.turn(pos, "left")
-            turtle.turnLeft()
-        elseif dir.turn == "back" then
-            position.turn(pos, "left")
-            turtle.turnLeft()
-            position.turn(pos, "left")
-            turtle.turnLeft()
+            local success, pos = position.forward()
+            if success then
+                chopTree() -- Recurse to chop connected logs
+                position.back() -- Return to the previous position
+            end
         end
     end
 
-    -- Check above for logs
+    -- 3. Check above for logs
     if turtle.detectUp() then
         turtle.digUp()
-        turtle.up()
-        position.update(pos, "up")
-        chopTree(startX, startZ)
-        turtle.down()
-        position.update(pos, "down")
+        local success, pos = position.up()
+        if success then
+            chopTree() -- Recurse upwards
+            position.down() -- Return to the previous position
+        end
     end
 
-    -- Check below for logs
+    -- 4. Check below for logs (rare case)
     if turtle.detectDown() then
         turtle.digDown()
-        turtle.down()
-        position.update(pos, "down")
-        chopTree(startX, startZ)
-        turtle.up()
-        position.update(pos, "up")
+        local success, pos = position.down()
+        if success then
+            chopTree() -- Recurse downwards
+            position.up() -- Return to the previous position
+        end
     end
 end
 
@@ -89,30 +53,22 @@ local function chopWood()
     print("Starting wood chopping operation...")
 
     -- Ensure the turtle is calibrated
-    if not position.calibrate() then
-        print("Position calibration failed. Ensure GPS is available.")
-        return
+    local success, initialPos = utility.readPositionFile(positionFile)
+    if not success then
+        utility.log("chopWood failed to execute")
+        return false
     end
 
-    -- Save initial position for return
-    local initialPos = position.load()
-    fs.open(jobStartPos, 'w')
-    fs.write(textutils.serialise(initialPos))
-    fs.close()
+    -- Save the starting position
+    utility.saveFile(jobStartPos, initialPos)
 
-    -- Start by digging the initial log and moving forward
-    if turtle.detect() then
-        turtle.dig()
-        turtle.forward()
-        position.update(initialPos, "forward")
-    end
+    -- Start the recursive chopping process
+    chopTree()
 
-    -- Start chopping the tree
-    chopTree(initialPos.x, initialPos.z)
-
-    -- Return to starting position and orientation
-    print("Returning to initial position...")
+    -- Return to the starting position and orientation
+    print("Returning to starting position...")
     navigation.navigateTo(initialPos.x, initialPos.y, initialPos.z, true)
+    return true
 end
 
 chopWood()
