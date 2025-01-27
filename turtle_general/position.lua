@@ -5,6 +5,15 @@ local position = {}
 local positionFile = "turtle_position"
 local pos = { x = 0, y = 0, z = 0, direction = "north" }
 
+function position.getGPSPosition()
+  local x, y, z = gps.locate(2)
+  if not x then
+      utility.log("Failed to retrieve GPS position.")
+      return nil -- Return nil if GPS fails
+  end
+  return { x = x, y = y, z = z }
+end
+
 -- Load the current position from file
 -- this has different functionality than utility.readPositionFile(). do not remove it
 local function load()
@@ -16,19 +25,16 @@ local function load()
       utility.unlock(utility.getLock(positionFile))
       return true
   else  -- assume first time finding location
-      pos.x, pos.y, pos.z = gps.locate(2)
-      if not pos.x then
-        print("gps locate failed.")
-        utility.log("gps locate failed.")
+    local gpsPos = position.getGPSPosition()
+    if not gpsPos then
+        utility.log("GPS locate failed in load().")
         utility.sendMessage("bot is lost")
         return false
-      end
-      if not position.calibrate() then
-        utility.log("failed to calibrate")
-        return false
-      end
-      utility.saveFile(positionFile)
-      return true
+    end
+    pos.x, pos.y, pos.z = gpsPos.x, gpsPos.y, gpsPos.z
+    pos.direction = "north"
+    utility.saveFile(positionFile)
+    return true
   end
 end
 
@@ -152,7 +158,11 @@ end
 
 -- calibrates the current position and direction the turtle is facing
 function position.calibrate()
-  if not load() then return false, pos end
+  local gpsPos = position.getGPSPosition()
+  if not gpsPos then
+    return false, pos
+  end
+  pos.x,pos.y,pos.z = gpsPos.z, gpsPos.y,gpsPos.z
   if calibrationMove() then
     return true, pos
   else
@@ -169,3 +179,5 @@ function position.calibrate()
   utility.unlock(positionFile)
   return false, pos
 end
+
+return position

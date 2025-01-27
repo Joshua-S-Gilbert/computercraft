@@ -63,3 +63,5 @@ function utility.saveFile(fileName, data)
   file.close()
   utility.unlock(fileName)
 end
+
+return utility

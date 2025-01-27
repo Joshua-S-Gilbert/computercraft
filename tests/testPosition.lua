@@ -31,29 +31,36 @@ end
 
 -- Main program
 local function main()
-    utility.log("Starting turtle position program...")
-    
-    -- Step 1: Calibrate the turtle
-    local calibrated, pos = position.calibrate()
-    if not calibrated then
-        utility.log("Failed to calibrate the turtle. Exiting program.")
-        return
+  utility.log("Starting turtle position program...")
+  if fs.exists("turtle_position") then
+    fs.delete("turtle_position")
+  end
+  if fs.exists("turtle_position.lock") then
+    fs.delete("turtle_position.lock")
+  end
+  
+  -- Step 1: Calibrate the turtle
+  local calibrated, pos = position.calibrate()
+  if not calibrated then
+    utility.log("Failed to calibrate the turtle. Exiting program.")
+    return
+  end
+
+  utility.log(string.format("Turtle calibrated successfully. Current position: (%d, %d, %d, %s)", pos.x, pos.y, pos.z, pos.direction))
+
+  -- Step 2: Listen for commands from the server
+  while true do
+    print("new loop")
+    utility.log("Waiting for command from server...")
+    local senderId, command = rednet.receive()
+
+    if not senderId or not command then
+      utility.log("Failed to receive command from server.")
+    else
+      utility.log("Received command: " .. command)
+      executeCommand(command)
     end
-
-    utility.log(string.format("Turtle calibrated successfully. Current position: (%d, %d, %d, %s)", pos.x, pos.y, pos.z, pos.direction))
-
-    -- Step 2: Listen for commands from the server
-    while true do
-        utility.log("Waiting for command from server...")
-        local senderId, command = rednet.receive()
-
-        if not senderId or not command then
-            utility.log("Failed to receive command from server.")
-        else
-            utility.log("Received command: " .. command)
-            executeCommand(command)
-        end
-    end
+  end
 end
 
 -- Run the main function
